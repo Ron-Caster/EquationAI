@@ -4,16 +4,16 @@ import sys
 import pkg_resources
 
 # Version check before imports
-if not (3, 7) <= sys.version_info < (3, 10):
-    st.error("This application requires Python version 3.7-3.9")
+if not (3, 7) <= sys.version_info < (3, 12):
+    st.error("This application requires Python version 3.7-3.11")
     st.stop()
 
 try:
     pkg_resources.require([
-        "numpy>=1.21.6,<2.0.0",
-        "torch>=1.13.1",
-        "numba>=0.53.1",
-        "llvmlite>=0.36.0"
+        "numpy>=1.23.5,<2.0.0",
+        "torch>=2.0.1",
+        "numba>=0.56.4",
+        "llvmlite>=0.39.1"
     ])
 except pkg_resources.VersionConflict as e:
     st.error(f"Package version conflict: {e}")
@@ -30,11 +30,6 @@ try:
 except ImportError as e:
     st.error(f"Failed to import required packages: {str(e)}")
     st.error("Please check your Python environment and package installations.")
-    st.stop()
-
-# Check Python version compatibility
-if not (3, 7) <= sys.version_info < (3, 10):
-    st.error("This application requires Python version 3.7-3.9. Current version: {}.{}.{}".format(*sys.version_info[:3]))
     st.stop()
 
 # Global variables to store model and client
