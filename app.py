@@ -1,6 +1,7 @@
 import os
 import whisper
 from groq import Groq
+import sounddevice as sd
 import numpy as np
 import tempfile
 import wave
@@ -8,14 +9,6 @@ from dotenv import load_dotenv
 import streamlit as st
 import queue
 import time
-
-# Attempt to import sounddevice with error handling
-try:
-    import sounddevice as sd
-    AUDIO_AVAILABLE = True
-except OSError:
-    AUDIO_AVAILABLE = False
-    st.error("Audio recording is not available. Please ensure PortAudio is installed on your system.")
 
 # Load environment variables from .env file
 load_dotenv()  # This loads the .env file and makes the variables available
@@ -95,10 +88,6 @@ def text_to_latex(text):
 # Streamlit interface function
 def streamlit_interface():
     st.title("Equation AI - Speech to LaTeX Converter")
-    
-    if not AUDIO_AVAILABLE:
-        st.warning("Audio recording functionality is not available. Please ensure your system has the required audio libraries installed.")
-        return
     
     if 'recorder' not in st.session_state:
         st.session_state.recorder = AudioRecorder()
