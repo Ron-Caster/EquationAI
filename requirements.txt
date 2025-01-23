@@ -4,3 +4,6 @@ python-dotenv
 sounddevice
 numpy
 requests
+streamlit
+portaudio19-dev
+python3-portaudio
