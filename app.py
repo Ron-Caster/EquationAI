@@ -3,8 +3,8 @@ import streamlit as st
 import sys
 
 # Check Python version compatibility
-if sys.version_info >= (3, 10):
-    st.error("This application requires Python version 3.6-3.9. Please use a compatible Python version.")
+if not (3, 7) <= sys.version_info < (3, 10):
+    st.error("This application requires Python version 3.7-3.9. Current version: {}.{}.{}".format(*sys.version_info[:3]))
     st.stop()
 
 # Global variables to store model and client
@@ -15,6 +15,11 @@ groq_client = None
 def init_dependencies():
     global whisper_model, groq_client
     try:
+        # Import dependencies with version checks
+        import pkg_resources
+        pkg_resources.require("numba>=0.56.4")
+        pkg_resources.require("llvmlite>=0.39.1")
+        
         import whisper
         import sounddevice as sd
         from groq import Groq
@@ -29,8 +34,8 @@ def init_dependencies():
         groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         
         return True, None
-    except ImportError as e:
-        return False, f"Failed to import required packages: {str(e)}"
+    except pkg_resources.VersionConflict as e:
+        return False, f"Package version conflict: {str(e)}"
     except Exception as e:
         return False, str(e)
 
@@ -106,7 +111,7 @@ def text_to_latex(text):
 
     latex_code = chat_completion.choices[0].message.content
     # Strip the "LaTeX code: " prefix
-    if latex_code.startswith("LaTeX code: "):
+    if (latex_code.startswith("LaTeX code: ")):
         latex_code = latex_code[len("LaTeX code: "):]
     return latex_code
 
