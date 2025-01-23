@@ -1,6 +1,23 @@
 import os
 import streamlit as st
 import sys
+import pkg_resources
+
+# Version check before imports
+if not (3, 7) <= sys.version_info < (3, 10):
+    st.error("This application requires Python version 3.7-3.9")
+    st.stop()
+
+try:
+    pkg_resources.require([
+        "numpy>=1.21.6,<2.0.0",
+        "torch>=1.13.1",
+        "numba>=0.53.1",
+        "llvmlite>=0.36.0"
+    ])
+except pkg_resources.VersionConflict as e:
+    st.error(f"Package version conflict: {e}")
+    st.stop()
 
 # Try importing optional dependencies with better error handling
 try:
@@ -27,6 +44,8 @@ groq_client = None
 @st.cache_resource(show_spinner=False)
 def init_dependencies():
     try:
+        # Force CPU mode
+        os.environ['CUDA_VISIBLE_DEVICES'] = ''
         # Verify CUDA is not required
         if torch.cuda.is_available():
             st.warning("CUDA detected but not required. Using CPU for inference.")
