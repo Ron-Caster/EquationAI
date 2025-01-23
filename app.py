@@ -1,11 +1,17 @@
 import os
 import streamlit as st
+import sys
+
+# Check Python version compatibility
+if sys.version_info >= (3, 10):
+    st.error("This application requires Python version 3.6-3.9. Please use a compatible Python version.")
+    st.stop()
 
 # Global variables to store model and client
 whisper_model = None
 groq_client = None
 
-# Initialize dependencies
+@st.cache_resource(show_spinner=False)
 def init_dependencies():
     global whisper_model, groq_client
     try:
@@ -14,14 +20,17 @@ def init_dependencies():
         from groq import Groq
         from dotenv import load_dotenv
         
-        # Load environment variables
         load_dotenv()
         
-        # Initialize models
+        if not os.getenv("GROQ_API_KEY"):
+            raise ValueError("GROQ_API_KEY not found in environment variables")
+            
         whisper_model = whisper.load_model("small.en")
         groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         
         return True, None
+    except ImportError as e:
+        return False, f"Failed to import required packages: {str(e)}"
     except Exception as e:
         return False, str(e)
 
@@ -105,13 +114,12 @@ def text_to_latex(text):
 def streamlit_interface():
     st.title("Equation AI - Speech to LaTeX Converter")
     
-    # Initialize dependencies if not already done
-    if whisper_model is None or groq_client is None:
+    with st.spinner("Initializing dependencies..."):
         success, error = init_dependencies()
         if not success:
             st.error("Failed to initialize required dependencies")
             st.error(f"Error details: {error}")
-            return
+            st.stop()
     
     if 'recorder' not in st.session_state:
         st.session_state.recorder = AudioRecorder()
