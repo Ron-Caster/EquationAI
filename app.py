@@ -1,65 +1,23 @@
 import os
-import streamlit as st
-import sys
-import pkg_resources
-
-# Version check before imports
-if not (3, 7) <= sys.version_info < (3, 12):
-    st.error("This application requires Python version 3.7-3.11")
-    st.stop()
-
-try:
-    pkg_resources.require([
-        "numpy>=1.23.5,<2.0.0",
-        "torch>=2.0.1",
-        "numba>=0.56.4",
-        "llvmlite>=0.39.1"
-    ])
-except pkg_resources.VersionConflict as e:
-    st.error(f"Package version conflict: {e}")
-    st.stop()
-
-# Try importing optional dependencies with better error handling
-try:
-    import torch
-    import numpy as np
-    import whisper
-    import sounddevice as sd
-    from groq import Groq
-    DEPENDENCIES_AVAILABLE = True
-except ImportError as e:
-    st.error(f"Failed to import required packages: {str(e)}")
-    st.error("Please check your Python environment and package installations.")
-    st.stop()
-
-# Global variables to store model and client
-whisper_model = None
-groq_client = None
-
-@st.cache_resource(show_spinner=False)
-def init_dependencies():
-    try:
-        # Force CPU mode
-        os.environ['CUDA_VISIBLE_DEVICES'] = ''
-        # Verify CUDA is not required
-        if torch.cuda.is_available():
-            st.warning("CUDA detected but not required. Using CPU for inference.")
-        
-        # Initialize models
-        whisper_model = whisper.load_model("small.en", device="cpu")
-        groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-        
-        return whisper_model, groq_client
-    except Exception as e:
-        st.error(f"Error initializing dependencies: {str(e)}")
-        return None, None
-
+import whisper
+from groq import Groq
+import sounddevice as sd
+import numpy as np
 import tempfile
 import wave
+from dotenv import load_dotenv
+import streamlit as st
 import queue
 import time
 
-# System prompt to help Groq understand the task`25`
+# Load environment variables from .env file
+load_dotenv()  # This loads the .env file and makes the variables available
+
+# Set up the Whisper and Groq client
+whisper_model = whisper.load_model("small.en")  # You can choose different model sizes (base, small, medium, large)
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))  # Load the Groq API key from the environment
+
+# System prompt to help Groq understand the task
 system_prompt = """
 You are a helpful assistant designed to convert spoken equations into LaTeX code. 
 When a user speaks a mathematical equation, transcribe it into a clean text form, 
@@ -104,13 +62,11 @@ class AudioRecorder:
         return np.array(self.audio_data)
 
 @st.cache_resource
-def get_whisper_model():
-    global whisper_model
-    return whisper_model
+def load_whisper_model():
+    return whisper.load_model("small.en")
 
 # Function to convert text to LaTeX using Groq
 def text_to_latex(text):
-    global groq_client
     # Create a conversation with the system prompt
     conversation = [
         {"role": "system", "content": system_prompt},
@@ -118,14 +74,14 @@ def text_to_latex(text):
     ]
     
     # Send the conversation to Groq for LaTeX code generation
-    chat_completion = groq_client.chat.completions.create(
+    chat_completion = client.chat.completions.create(
         messages=conversation,
         model="llama-3.3-70b-versatile",  # Or replace with the appropriate model ID
     )
 
     latex_code = chat_completion.choices[0].message.content
     # Strip the "LaTeX code: " prefix
-    if (latex_code.startswith("LaTeX code: ")):
+    if latex_code.startswith("LaTeX code: "):
         latex_code = latex_code[len("LaTeX code: "):]
     return latex_code
 
@@ -133,15 +89,9 @@ def text_to_latex(text):
 def streamlit_interface():
     st.title("Equation AI - Speech to LaTeX Converter")
     
-    with st.spinner("Initializing dependencies..."):
-        whisper_model, groq_client = init_dependencies()
-        if not whisper_model or not groq_client:
-            st.error("Failed to initialize required dependencies")
-            st.stop()
-    
     if 'recorder' not in st.session_state:
         st.session_state.recorder = AudioRecorder()
-        st.session_state.whisper_model = whisper_model
+        st.session_state.whisper_model = load_whisper_model()
     
     col1, col2 = st.columns(2)
     
