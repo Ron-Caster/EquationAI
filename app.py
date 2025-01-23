@@ -9,12 +9,13 @@ from dotenv import load_dotenv
 import streamlit as st
 import queue
 import time
+import torch
 
 # Load environment variables from .env file
 load_dotenv()  # This loads the .env file and makes the variables available
 
 # Set up the Whisper and Groq client
-whisper_model = whisper.load_model("small.en")  # You can choose different model sizes (base, small, medium, large)
+whisper_model = whisper.load_model("small.en", device="cpu")  # Ensure CPU mode
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))  # Load the Groq API key from the environment
 
 # System prompt to help Groq understand the task
@@ -63,7 +64,7 @@ class AudioRecorder:
 
 @st.cache_resource
 def load_whisper_model():
-    return whisper.load_model("small.en")
+    return whisper.load_model("small.en", device="cpu")
 
 # Function to convert text to LaTeX using Groq
 def text_to_latex(text):
