@@ -5,6 +5,6 @@ builder = "heroku/buildpacks:20"
 uri = "heroku/python"
 
 [build.env]
-PYTHON_VERSION = "3.9.18"
+PYTHON_VERSION = "3.11.9"
 PYTHONUNBUFFERED = "1"
 PYTHONPATH = "/app"

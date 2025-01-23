@@ -1,2 +1,2 @@
 python-3.11.9
-streamlit==1.21.0
+streamlit==1.41.1
