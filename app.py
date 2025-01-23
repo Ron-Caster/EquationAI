@@ -1,29 +1,35 @@
 import os
 import streamlit as st
 
-# Try importing optional dependencies with better error handling
-try:
-    import whisper
-    import sounddevice as sd
-    from groq import Groq
-    DEPENDENCIES_AVAILABLE = True
-except (ImportError, OSError) as e:
-    DEPENDENCIES_AVAILABLE = False
-    error_msg = str(e)
+# Global variables to store model and client
+whisper_model = None
+groq_client = None
+
+# Initialize dependencies
+def init_dependencies():
+    global whisper_model, groq_client
+    try:
+        import whisper
+        import sounddevice as sd
+        from groq import Groq
+        from dotenv import load_dotenv
+        
+        # Load environment variables
+        load_dotenv()
+        
+        # Initialize models
+        whisper_model = whisper.load_model("small.en")
+        groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        
+        return True, None
+    except Exception as e:
+        return False, str(e)
 
 import numpy as np
 import tempfile
 import wave
-from dotenv import load_dotenv
 import queue
 import time
-
-# Load environment variables from .env file
-load_dotenv()  # This loads the .env file and makes the variables available
-
-# Set up the Whisper and Groq client
-whisper_model = whisper.load_model("small.en")  # You can choose different model sizes (base, small, medium, large)
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))  # Load the Groq API key from the environment
 
 # System prompt to help Groq understand the task`25`
 system_prompt = """
@@ -70,11 +76,13 @@ class AudioRecorder:
         return np.array(self.audio_data)
 
 @st.cache_resource
-def load_whisper_model():
-    return whisper.load_model("small.en")
+def get_whisper_model():
+    global whisper_model
+    return whisper_model
 
 # Function to convert text to LaTeX using Groq
 def text_to_latex(text):
+    global groq_client
     # Create a conversation with the system prompt
     conversation = [
         {"role": "system", "content": system_prompt},
@@ -82,7 +90,7 @@ def text_to_latex(text):
     ]
     
     # Send the conversation to Groq for LaTeX code generation
-    chat_completion = client.chat.completions.create(
+    chat_completion = groq_client.chat.completions.create(
         messages=conversation,
         model="llama-3.3-70b-versatile",  # Or replace with the appropriate model ID
     )
@@ -97,14 +105,17 @@ def text_to_latex(text):
 def streamlit_interface():
     st.title("Equation AI - Speech to LaTeX Converter")
     
-    if not DEPENDENCIES_AVAILABLE:
-        st.error("Required dependencies are not available. Please check system requirements.")
-        st.error(f"Error details: {error_msg}")
-        return
+    # Initialize dependencies if not already done
+    if whisper_model is None or groq_client is None:
+        success, error = init_dependencies()
+        if not success:
+            st.error("Failed to initialize required dependencies")
+            st.error(f"Error details: {error}")
+            return
     
     if 'recorder' not in st.session_state:
         st.session_state.recorder = AudioRecorder()
-        st.session_state.whisper_model = load_whisper_model()
+        st.session_state.whisper_model = get_whisper_model()
     
     col1, col2 = st.columns(2)
     
