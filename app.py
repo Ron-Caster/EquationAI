@@ -2,6 +2,19 @@ import os
 import streamlit as st
 import sys
 
+# Try importing optional dependencies with better error handling
+try:
+    import torch
+    import numpy as np
+    import whisper
+    import sounddevice as sd
+    from groq import Groq
+    DEPENDENCIES_AVAILABLE = True
+except ImportError as e:
+    st.error(f"Failed to import required packages: {str(e)}")
+    st.error("Please check your Python environment and package installations.")
+    st.stop()
+
 # Check Python version compatibility
 if not (3, 7) <= sys.version_info < (3, 10):
     st.error("This application requires Python version 3.7-3.9. Current version: {}.{}.{}".format(*sys.version_info[:3]))
@@ -13,33 +26,20 @@ groq_client = None
 
 @st.cache_resource(show_spinner=False)
 def init_dependencies():
-    global whisper_model, groq_client
     try:
-        # Import dependencies with version checks
-        import pkg_resources
-        pkg_resources.require("numba>=0.56.4")
-        pkg_resources.require("llvmlite>=0.39.1")
+        # Verify CUDA is not required
+        if torch.cuda.is_available():
+            st.warning("CUDA detected but not required. Using CPU for inference.")
         
-        import whisper
-        import sounddevice as sd
-        from groq import Groq
-        from dotenv import load_dotenv
-        
-        load_dotenv()
-        
-        if not os.getenv("GROQ_API_KEY"):
-            raise ValueError("GROQ_API_KEY not found in environment variables")
-            
-        whisper_model = whisper.load_model("small.en")
+        # Initialize models
+        whisper_model = whisper.load_model("small.en", device="cpu")
         groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         
-        return True, None
-    except pkg_resources.VersionConflict as e:
-        return False, f"Package version conflict: {str(e)}"
+        return whisper_model, groq_client
     except Exception as e:
-        return False, str(e)
+        st.error(f"Error initializing dependencies: {str(e)}")
+        return None, None
 
-import numpy as np
 import tempfile
 import wave
 import queue
@@ -120,15 +120,14 @@ def streamlit_interface():
     st.title("Equation AI - Speech to LaTeX Converter")
     
     with st.spinner("Initializing dependencies..."):
-        success, error = init_dependencies()
-        if not success:
+        whisper_model, groq_client = init_dependencies()
+        if not whisper_model or not groq_client:
             st.error("Failed to initialize required dependencies")
-            st.error(f"Error details: {error}")
             st.stop()
     
     if 'recorder' not in st.session_state:
         st.session_state.recorder = AudioRecorder()
-        st.session_state.whisper_model = get_whisper_model()
+        st.session_state.whisper_model = whisper_model
     
     col1, col2 = st.columns(2)
     
